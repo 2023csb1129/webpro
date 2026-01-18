@@ -4,6 +4,10 @@ import dotenv from 'dotenv';
 import User from './models/User.js';
 import Course from './models/Course.js';
 import Enrollment from './models/Enrollment.js';
+import dns from 'dns';
+
+// Use Google DNS for SRV record resolution
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 dotenv.config();
 

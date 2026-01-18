@@ -2,6 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import dns from 'dns';
+
+// Use Google DNS for SRV record resolution (fixes some network issues)
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 import authRoutes from './routes/auth.js';
 import courseRoutes from './routes/courses.js';
 import enrollmentRoutes from './routes/enrollments.js';
@@ -42,6 +46,7 @@ const startServer = async () => {
             console.log(`Server running on http://localhost:${PORT}`);
         });
     } catch (error) {
+        console.error('MongoDB connection error:', error.message);
         // Start server anyway even if DB connection fails
         app.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT} (No DB)`);
