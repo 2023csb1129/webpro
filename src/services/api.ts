@@ -145,6 +145,12 @@ export const enrollmentsAPI = {
     getAll: async () => {
         return fetchAPI<{ enrollments: Enrollment[] }>('/enrollments');
     },
+
+    withdraw: async (id: string) => {
+        return fetchAPI<{ enrollment: Enrollment }>(`/enrollments/${id}/withdraw`, {
+            method: 'PATCH',
+        });
+    },
 };
 
 // Users API
@@ -206,7 +212,7 @@ export interface Enrollment {
     id: string;
     studentId: string | { _id: string; name: string; email: string };
     courseId: string | { _id: string; code: string; name: string };
-    status: 'pending_instructor' | 'pending_advisor' | 'approved' | 'rejected';
+    status: 'pending_instructor' | 'pending_advisor' | 'approved' | 'rejected' | 'withdrawn';
     instructorApproval?: boolean;
     instructorRemarks?: string;
     advisorId?: string;

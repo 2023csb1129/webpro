@@ -73,15 +73,30 @@ const seedData = async () => {
         console.log(`Created ${advisors.length} advisors`);
 
         // ==========================================
+        // ==========================================
         // ADMIN - System administrator
         // ==========================================
-        const admin = await User.create({
-            email: 'admin@university.edu',
-            name: 'System Admin',
-            role: 'admin',
-            department: 'Administration'
-        });
-        console.log('Created admin user');
+        const admins = await User.create([
+            {
+                email: 'admin@university.edu',
+                name: 'System Admin',
+                role: 'admin',
+                department: 'Administration'
+            },
+            {
+                email: 'varavind433@gmail.com',
+                name: 'Var Aravind',
+                role: 'admin',
+                department: 'Administration'
+            },
+            {
+                email: 'skp10022006@gmail.com',
+                name: 'Main Admin',
+                role: 'admin',
+                department: 'Administration'
+            }
+        ]);
+        console.log(`Created ${admins.length} admin users`);
 
         // ==========================================
         // COURSES - With assigned instructors
@@ -160,8 +175,8 @@ const seedData = async () => {
         console.log('\n🟡 ADVISORS (final approval):');
         advisors.forEach(a => console.log(`   - ${a.email} (${a.name})`));
 
-        console.log('\n🟢 ADMIN:');
-        console.log(`   - ${admin.email}`);
+        console.log('\n🟢 ADMINS:');
+        admins.forEach(a => console.log(`   - ${a.email} (${a.name})`));
 
         console.log('\n📚 COURSES:');
         for (const course of courses) {

@@ -23,28 +23,47 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Course is full' });
         }
 
-        // Check if already enrolled or pending
-        const existingEnrollment = await Enrollment.findOne({ studentId, courseId });
-        if (existingEnrollment) {
-            return res.status(400).json({
-                success: false,
-                message: `You already have a ${existingEnrollment.status} enrollment for this course`
-            });
-        }
-
         // Get student info
         const student = await User.findById(studentId);
         if (!student) {
             return res.status(404).json({ success: false, message: 'Student not found' });
         }
 
-        // Create enrollment
-        const enrollment = await Enrollment.create({
-            studentId,
-            courseId,
-            advisorId,
-            status: 'pending_instructor'
-        });
+        // Check if already enrolled or pending
+        let enrollment = await Enrollment.findOne({ studentId, courseId });
+
+        if (enrollment) {
+            // If active, block
+            if (['pending_instructor', 'pending_advisor', 'approved'].includes(enrollment.status)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `You already have a ${enrollment.status} enrollment for this course`
+                });
+            }
+
+            // If inactive (withdrawn/rejected), reset to pending
+            enrollment.status = 'pending_instructor';
+            enrollment.advisorId = advisorId; // Update advisor if changed
+
+            // Clear previous approvals/remarks
+            enrollment.instructorApproval = undefined;
+            enrollment.instructorRemarks = '';
+            enrollment.instructorActionAt = undefined;
+
+            enrollment.advisorApproval = undefined;
+            enrollment.advisorRemarks = '';
+            enrollment.advisorActionAt = undefined;
+
+            await enrollment.save();
+        } else {
+            // Create new enrollment
+            enrollment = await Enrollment.create({
+                studentId,
+                courseId,
+                advisorId,
+                status: 'pending_instructor'
+            });
+        }
 
         // Send email notification to instructor
         if (course.instructorId?.email) {
@@ -55,6 +74,8 @@ router.post('/', async (req, res) => {
                 courseCode: course.code
             });
         }
+
+        console.log(`Enrollment created: Student ${student.email} -> Course ${course.code}`);
 
         res.status(201).json({
             success: true,
@@ -235,6 +256,35 @@ router.get('/', async (req, res) => {
     } catch (error) {
         console.error('Get all enrollments error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch enrollments' });
+    }
+});
+
+// Withdraw enrollment (Student)
+router.patch('/:id/withdraw', async (req, res) => {
+    try {
+        const enrollment = await Enrollment.findById(req.params.id)
+            .populate('courseId');
+
+        if (!enrollment) {
+            return res.status(404).json({ success: false, message: 'Enrollment not found' });
+        }
+
+        if (['rejected', 'withdrawn'].includes(enrollment.status)) {
+            return res.status(400).json({ success: false, message: 'Enrollment already inactive' });
+        }
+
+        // If previously approved, free up the seat
+        if (enrollment.status === 'approved') {
+            await Course.findByIdAndUpdate(enrollment.courseId._id, { $inc: { enrolledCount: -1 } });
+        }
+
+        enrollment.status = 'withdrawn';
+        await enrollment.save();
+
+        res.json({ success: true, enrollment });
+    } catch (error) {
+        console.error('Withdraw enrollment error:', error);
+        res.status(500).json({ success: false, message: 'Failed to withdraw enrollment' });
     }
 });
 

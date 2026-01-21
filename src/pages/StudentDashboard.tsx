@@ -4,6 +4,7 @@ import CourseCard from '@/components/courses/CourseCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { BookOpen, Clock, CheckCircle, GraduationCap, Loader2, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,7 +23,7 @@ const StudentDashboard = () => {
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [enrollments, setEnrollments] = useState<EnrollmentWithDetails[]>([]);
-  const [advisors, setAdvisors] = useState<{ id: string; name: string }[]>([]);
+  const [advisors, setAdvisors] = useState<{ id: string; name: string; department: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEnrolling, setIsEnrolling] = useState<string | null>(null);
 
@@ -56,7 +57,11 @@ const StudentDashboard = () => {
       // Fetch advisors for enrollment
       const advisorsResult = await usersAPI.getByRole('advisor');
       if (advisorsResult.success && advisorsResult.data?.users) {
-        setAdvisors(advisorsResult.data.users.map((a: any) => ({ id: a.id, name: a.name })));
+        setAdvisors(advisorsResult.data.users.map((a: any) => ({
+          id: a.id,
+          name: a.name,
+          department: a.department
+        })));
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -73,8 +78,24 @@ const StudentDashboard = () => {
 
     setIsEnrolling(courseId);
 
-    // Get first advisor as default (in real app, you might let user choose)
-    const advisorId = advisors[0]?.id;
+    // Find advisor matching the course department (case-insensitive)
+    const course = courses.find(c => c.id === courseId);
+    const matchedAdvisor = advisors.find(a =>
+      a.department?.toLowerCase() === course?.department?.toLowerCase()
+    );
+
+    // Fallback to first advisor if no match found (or handle error)
+    const advisorId = matchedAdvisor?.id || advisors[0]?.id;
+
+    if (!advisorId) {
+      toast({
+        title: 'Enrollment Failed',
+        description: 'No advisor found for this department.',
+        variant: 'destructive',
+      });
+      setIsEnrolling(null);
+      return;
+    }
 
     const result = await enrollmentsAPI.create(user.id, courseId, advisorId);
 
@@ -109,12 +130,32 @@ const StudentDashboard = () => {
   const myEnrolledCourses = courses.filter(c => enrolledCourseIds.includes(c.id));
   const myPendingCourses = courses.filter(c => pendingCourseIds.includes(c.id));
 
+  const handleWithdraw = async (enrollmentId: string) => {
+    if (!confirm('Are you sure you want to withdraw from this course? This action cannot be undone immediately if seats fill up.')) return;
+
+    const result = await enrollmentsAPI.withdraw(enrollmentId);
+    if (result.success) {
+      toast({
+        title: 'Withdrawn',
+        description: 'You have successfully withdrawn from the course.',
+      });
+      fetchData();
+    } else {
+      toast({
+        title: 'Error',
+        description: result.error || 'Failed to withdraw',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'approved': return 'status-approved';
       case 'rejected': return 'status-rejected';
       case 'pending_instructor': return 'status-pending';
       case 'pending_advisor': return 'status-pending';
+      case 'withdrawn': return 'destructive';
       default: return 'status-pending';
     }
   };
@@ -125,6 +166,7 @@ const StudentDashboard = () => {
       case 'rejected': return 'Rejected';
       case 'pending_instructor': return 'Pending Instructor';
       case 'pending_advisor': return 'Pending Advisor';
+      case 'withdrawn': return 'Withdrawn';
       default: return status;
     }
   };
@@ -144,14 +186,17 @@ const StudentDashboard = () => {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
+          <div className="flex items-center gap-2">
             <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground">
               Student Dashboard
             </h1>
-            <p className="text-muted-foreground">
-              Welcome, {user?.name}! Browse courses and track your enrollment status
-            </p>
+            <Button variant="ghost" size="icon" onClick={() => fetchData()} title="Refresh Data">
+              <Loader2 className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
+          <p className="text-muted-foreground">
+            Welcome, {user?.name}! Browse courses and track your enrollment status
+          </p>
           <div className="flex gap-4">
             <Card className="px-4 py-3">
               <div className="flex items-center gap-3">
@@ -300,9 +345,21 @@ const StudentDashboard = () => {
                             </p>
                           )}
                         </div>
-                        <Badge variant={getStatusBadgeVariant(request.status) as any}>
-                          {getStatusLabel(request.status)}
-                        </Badge>
+                        <div className="flex items-center gap-3">
+                          <Badge variant={getStatusBadgeVariant(request.status) as any}>
+                            {getStatusLabel(request.status)}
+                          </Badge>
+                          {['pending_instructor', 'pending_advisor', 'approved'].includes(request.status) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive border-destructive hover:bg-destructive/10"
+                              onClick={() => handleWithdraw(request.id)}
+                            >
+                              Withdraw
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

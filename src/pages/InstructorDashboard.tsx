@@ -3,6 +3,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import EnrollmentRequestCard from '@/components/enrollment/EnrollmentRequestCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Clock, CheckCircle, XCircle, Inbox, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,8 +67,9 @@ const InstructorDashboard = () => {
   }, [fetchRequests]);
 
   const pendingRequests = requests.filter(r => r.status === 'pending_instructor');
-  const approvedRequests = requests.filter(r => r.instructorApproval === true);
+  const approvedRequests = requests.filter(r => r.instructorApproval === true && r.status !== 'withdrawn');
   const rejectedRequests = requests.filter(r => r.status === 'rejected' && r.instructorApproval === false);
+  const withdrawnRequests = requests.filter(r => r.status === 'withdrawn');
 
   const handleApprove = async (requestId: string, remarks: string) => {
     setIsProcessing(true);
@@ -127,13 +129,18 @@ const InstructorDashboard = () => {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground">
-              Instructor Dashboard
-            </h1>
-            <p className="text-muted-foreground">
-              Welcome, {user?.name}! Review and approve student enrollment requests
-            </p>
+          <div className="flex items-center gap-2">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground">
+                Instructor Dashboard
+              </h1>
+              <p className="text-muted-foreground">
+                Welcome, {user?.name}! Review and approve student enrollment requests
+              </p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => fetchRequests()} title="Refresh Data">
+              <Loader2 className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
           <div className="flex gap-4">
             <Card className="px-4 py-3">
@@ -163,7 +170,7 @@ const InstructorDashboard = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="pending" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsList className="grid w-full max-w-md grid-cols-4">
             <TabsTrigger value="pending" className="gap-2">
               <Inbox className="h-4 w-4 hidden sm:block" />
               Pending
@@ -180,6 +187,10 @@ const InstructorDashboard = () => {
             <TabsTrigger value="rejected" className="gap-2">
               <XCircle className="h-4 w-4 hidden sm:block" />
               Rejected
+            </TabsTrigger>
+            <TabsTrigger value="withdrawn" className="gap-2">
+              <Inbox className="h-4 w-4 hidden sm:block grayscale" />
+              Withdrawn
             </TabsTrigger>
           </TabsList>
 
@@ -231,6 +242,24 @@ const InstructorDashboard = () => {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {rejectedRequests.map(request => (
+                  <EnrollmentRequestCard
+                    key={request.id}
+                    request={request}
+                    userRole="instructor"
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="withdrawn" className="space-y-4 animate-fade-in">
+            {withdrawnRequests.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground">No withdrawn requests.</p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {withdrawnRequests.map(request => (
                   <EnrollmentRequestCard
                     key={request.id}
                     request={request}
