@@ -1,14 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import LoginForm from '@/components/auth/LoginForm';
-import { UserRole } from '@/types';
+import { User } from '@/types';
 
 const LoginPage = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
 
-    const handleLogin = (email: string, role: UserRole, userId: string, name: string) => {
-        login({ email, role, id: userId, name });
+    const handleLogin = (user: User) => {
+        login(user);
         navigate('/dashboard');
     };
 

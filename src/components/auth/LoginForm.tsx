@@ -4,12 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, ArrowRight, Loader2 } from 'lucide-react';
-import { UserRole } from '@/types';
+import { User, UserRole } from '@/types';
 import { authAPI } from '@/services/api';
 import OTPInput from './OTPInput';
 
 interface LoginFormProps {
-  onLogin: (email: string, role: UserRole, userId: string, name: string) => void;
+  onLogin: (user: User) => void;
 }
 
 const LoginForm = ({ onLogin }: LoginFormProps) => {
@@ -74,8 +74,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
     setIsLoading(false);
 
     if (result.success && result.data?.user) {
-      const user = result.data.user;
-      onLogin(user.email, user.role as UserRole, user.id, user.name);
+      onLogin(result.data.user as User);
     } else {
       setError(result.error || 'Invalid OTP. Please try again.');
     }

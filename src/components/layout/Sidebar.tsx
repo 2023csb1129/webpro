@@ -73,26 +73,20 @@ const Sidebar = () => {
 
                     {user.department && (
                         <div className="flex items-center gap-3 group text-muted-foreground hover:text-foreground transition-colors">
-                            <div className="p-2 rounded-lg bg-muted group-hover:bg-success/10 group-hover:text-success transition-all">
-                                <Building2 className="h-4 w-4" />
+                            <div className={`p-2 rounded-lg bg-muted group-hover:bg-${hasBranch ? 'accent' : 'success'}/10 group-hover:text-${hasBranch ? 'accent' : 'success'} transition-all`}>
+                                {hasBranch ? <GraduationCap className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] uppercase tracking-wider font-bold opacity-50">Department</span>
-                                <span className="text-sm font-medium">{user.department}</span>
-                            </div>
-                        </div>
-                    )}
-
-                    {hasBranch && (
-                        <div className="flex items-center gap-3 group text-muted-foreground hover:text-foreground transition-colors">
-                            <div className="p-2 rounded-lg bg-muted group-hover:bg-accent/10 group-hover:text-accent transition-all">
-                                <GraduationCap className="h-4 w-4" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-[10px] uppercase tracking-wider font-bold opacity-50">Branch</span>
-                                <Badge variant="secondary" className="w-fit text-xs font-bold uppercase tracking-wide bg-accent/20 text-accent">
-                                    {user.department}
-                                </Badge>
+                                <span className="text-[10px] uppercase tracking-wider font-bold opacity-50">
+                                    {hasBranch ? 'Branch' : 'Department'}
+                                </span>
+                                {hasBranch ? (
+                                    <Badge variant="secondary" className="w-fit text-xs font-bold uppercase tracking-wide bg-accent/20 text-accent">
+                                        {user.department}
+                                    </Badge>
+                                ) : (
+                                    <span className="text-sm font-medium">{user.department}</span>
+                                )}
                             </div>
                         </div>
                     )}
