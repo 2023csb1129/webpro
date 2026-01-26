@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { coursesAPI, usersAPI, Course, User } from '@/services/api';
+import { coursesAPI, usersAPI, enrollmentsAPI, Course, User, Enrollment } from '@/services/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,8 @@ import {
   Pencil,
   Trash2,
   GraduationCap,
-  Settings
+  Settings,
+  ClipboardList
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 const AdminDashboard = () => {
@@ -41,11 +42,13 @@ const AdminDashboard = () => {
   const [instructors, setInstructors] = useState<User[]>([]);
   const [advisors, setAdvisors] = useState<User[]>([]);
   const [students, setStudents] = useState<User[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false);
   const [isAddInstructorOpen, setIsAddInstructorOpen] = useState(false);
   const [isAddAdvisorOpen, setIsAddAdvisorOpen] = useState(false);
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
 
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -75,6 +78,11 @@ const AdminDashboard = () => {
       if (studentsRes.success && studentsRes.data?.users) {
         setStudents(studentsRes.data.users);
       }
+
+      const enrollmentsRes = await enrollmentsAPI.getAll();
+      if (enrollmentsRes.success && enrollmentsRes.data?.enrollments) {
+        setEnrollments(enrollmentsRes.data.enrollments);
+      }
     } catch (error) {
       console.error('Failed to fetch admin data', error);
       toast({
@@ -103,6 +111,7 @@ const AdminDashboard = () => {
         department: formData.get('department') as string,
         instructorId: formData.get('instructor') as string,
         maxSeats: parseInt(formData.get('maxSeats') as string),
+        eligibleBranches: (formData.get('eligibleBranches') as string)?.split(',').map(s => s.trim()).filter(Boolean),
       });
 
       if (result.success) {
@@ -143,6 +152,7 @@ const AdminDashboard = () => {
         });
         if (role === 'instructor') setIsAddInstructorOpen(false);
         if (role === 'advisor') setIsAddAdvisorOpen(false);
+        if (role === 'student') setIsAddStudentOpen(false);
         fetchData();
       } else {
         toast({
@@ -221,6 +231,7 @@ const AdminDashboard = () => {
         department: formData.get('department') as string,
         instructorId: formData.get('instructor') as string,
         maxSeats: parseInt(formData.get('maxSeats') as string),
+        eligibleBranches: (formData.get('eligibleBranches') as string)?.split(',').map(s => s.trim()).filter(Boolean),
       });
 
       if (result.success) {
@@ -297,7 +308,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-full bg-primary/10">
@@ -306,6 +317,17 @@ const AdminDashboard = () => {
               <div>
                 <p className="text-2xl font-bold">{courses.length}</p>
                 <p className="text-xs text-muted-foreground">Courses</p>
+              </div>
+            </div>
+          </Card>
+          <Card className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-blue-500/10">
+                <ClipboardList className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{enrollments.length}</p>
+                <p className="text-xs text-muted-foreground">Requests</p>
               </div>
             </div>
           </Card>
@@ -346,10 +368,14 @@ const AdminDashboard = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="courses" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-4">
+          <TabsList className="grid w-full max-w-2xl grid-cols-5">
             <TabsTrigger value="courses" className="gap-2">
               <BookOpen className="h-4 w-4 hidden sm:block" />
               Courses
+            </TabsTrigger>
+            <TabsTrigger value="enrollments" className="gap-2">
+              <ClipboardList className="h-4 w-4 hidden sm:block" />
+              Enrollments
             </TabsTrigger>
             <TabsTrigger value="instructors" className="gap-2">
               <Users className="h-4 w-4 hidden sm:block" />
@@ -431,6 +457,10 @@ const AdminDashboard = () => {
                           <Input id="maxSeats" name="maxSeats" type="number" placeholder="60" required />
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="eligibleBranches">Eligible Branches (comma separated)</Label>
+                        <Input id="eligibleBranches" name="eligibleBranches" placeholder="CSE, MNC, AI" defaultValue="CSE, MNC, AI" required />
+                      </div>
                       <Button type="submit" className="w-full">
                         Add Course
                       </Button>
@@ -445,6 +475,7 @@ const AdminDashboard = () => {
                       <TableRow>
                         <TableHead>Code</TableHead>
                         <TableHead>Name</TableHead>
+                        <TableHead>Eligible Branches</TableHead>
                         <TableHead>Instructor</TableHead>
                         <TableHead>Enrolled</TableHead>
                         <TableHead>Status</TableHead>
@@ -456,6 +487,15 @@ const AdminDashboard = () => {
                         <TableRow key={course.id}>
                           <TableCell className="font-mono">{course.code}</TableCell>
                           <TableCell className="font-medium">{course.name}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {course.eligibleBranches?.map(branch => (
+                                <Badge key={branch} variant="outline" className="text-[10px] px-1 py-0 h-4 uppercase">
+                                  {branch}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
                           <TableCell>{course.instructorName}</TableCell>
                           <TableCell>
                             {course.enrolledCount}/{course.maxSeats}
@@ -489,6 +529,68 @@ const AdminDashboard = () => {
                           </TableCell>
                         </TableRow>
                       ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Enrollments Tab */}
+          <TabsContent value="enrollments" className="animate-fade-in">
+            <Card>
+              <CardHeader>
+                <CardTitle>Enrollment Requests</CardTitle>
+                <CardDescription>All student enrollment requests and their status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Branch</TableHead>
+                        <TableHead>Course</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Requested On</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {enrollments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            No enrollment records found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        enrollments.map((e: any) => (
+                          <TableRow key={e.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{e.studentId?.name || 'Unknown'}</p>
+                                <p className="text-xs text-muted-foreground">{e.studentId?.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="uppercase">{e.studentId?.department || 'N/A'}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-xs md:text-sm">{e.courseId?.name || 'Unknown'}</p>
+                                <p className="text-xs font-mono text-muted-foreground">{e.courseId?.code}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={e.status === 'approved' ? 'success' : e.status === 'rejected' ? 'destructive' : 'status-pending'}>
+                                {e.status.replace('_', ' ')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {e.createdAt ? new Date(e.createdAt).toLocaleDateString() : 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -635,7 +737,9 @@ const AdminDashboard = () => {
                       <TableRow key={advisor.id}>
                         <TableCell className="font-medium">{advisor.name}</TableCell>
                         <TableCell>{advisor.email}</TableCell>
-                        <TableCell>{advisor.department}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="uppercase">{advisor.department}</Badge>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
@@ -663,9 +767,44 @@ const AdminDashboard = () => {
           {/* Students Tab */}
           <TabsContent value="students" className="animate-fade-in">
             <Card>
-              <CardHeader>
-                <CardTitle>Students</CardTitle>
-                <CardDescription>All registered students</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Students</CardTitle>
+                  <CardDescription>All registered students</CardDescription>
+                </div>
+                <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="hero" size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Student
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Add New Student</DialogTitle>
+                      <DialogDescription>
+                        Register a new student in the system
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={(e) => handleAddUser(e, 'student')} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input id="name" name="name" placeholder="John Doe" required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input id="email" name="email" type="email" placeholder="student@university.edu" required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="department">Department</Label>
+                        <Input id="department" name="department" placeholder="Computer Science" defaultValue="Computer Science" required />
+                      </div>
+                      <Button type="submit" className="w-full">
+                        Add Student
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -681,7 +820,9 @@ const AdminDashboard = () => {
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">{student.name}</TableCell>
                         <TableCell>{student.email}</TableCell>
-                        <TableCell>{student.department}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="uppercase">{student.department}</Badge>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -744,6 +885,10 @@ const AdminDashboard = () => {
                   <Label htmlFor="edit-maxSeats">Max Seats</Label>
                   <Input id="edit-maxSeats" name="maxSeats" type="number" defaultValue={editingCourse.maxSeats} required />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-eligibleBranches">Eligible Branches (comma separated)</Label>
+                <Input id="edit-eligibleBranches" name="eligibleBranches" defaultValue={editingCourse.eligibleBranches?.join(', ') || 'CSE, MNC, AI'} required />
               </div>
               <Button type="submit" className="w-full">Update Course</Button>
             </form>

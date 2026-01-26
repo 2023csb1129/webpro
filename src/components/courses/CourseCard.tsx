@@ -15,12 +15,14 @@ interface CourseCardProps {
     maxSeats: number;
     enrolledCount: number;
     isOpen: boolean;
+    eligibleBranches?: string[];
   };
   onEnroll?: (courseId: string) => void;
   isEnrolling?: boolean;
   showEnrollButton?: boolean;
   isEnrolled?: boolean;
   isPending?: boolean;
+  isEligible?: boolean;
 }
 
 const CourseCard = ({
@@ -30,6 +32,7 @@ const CourseCard = ({
   showEnrollButton = true,
   isEnrolled = false,
   isPending = false,
+  isEligible = true,
 }: CourseCardProps) => {
   const availableSeats = course.maxSeats - course.enrolledCount;
   const isFull = availableSeats <= 0;
@@ -58,10 +61,22 @@ const CourseCard = ({
           {isPending && (
             <Badge variant="status-pending" className="shrink-0">Pending</Badge>
           )}
+          {!isEligible && (
+            <Badge variant="secondary" className="shrink-0 opacity-70">Not Offered</Badge>
+          )}
         </div>
         <CardDescription className="line-clamp-2 text-sm">
           {course.description}
         </CardDescription>
+        {course.eligibleBranches && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {course.eligibleBranches.map(branch => (
+              <Badge key={branch} variant="outline" className="text-[10px] py-0 h-4 bg-muted/50">
+                {branch}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-3">
@@ -87,8 +102,8 @@ const CourseCard = ({
           {showEnrollButton && !isEnrolled && !isPending && (
             <Button
               className="w-full mt-2"
-              variant={course.isOpen && !isFull ? "hero" : "secondary"}
-              disabled={!course.isOpen || isFull || isEnrolling}
+              variant={course.isOpen && !isFull && isEligible ? "hero" : "secondary"}
+              disabled={!course.isOpen || isFull || isEnrolling || !isEligible}
               onClick={() => onEnroll?.(course.id)}
             >
               {isEnrolling ? (
@@ -100,6 +115,8 @@ const CourseCard = ({
                 'Course Full'
               ) : !course.isOpen ? (
                 'Enrollment Closed'
+              ) : !isEligible ? (
+                'Not Offered to your Branch'
               ) : (
                 'Request Enrollment'
               )}

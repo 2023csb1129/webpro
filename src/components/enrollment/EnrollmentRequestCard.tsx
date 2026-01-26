@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle, XCircle, User, Mail, BookOpen, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
@@ -27,6 +28,9 @@ interface EnrollmentRequestCardProps {
   onApprove?: (requestId: string, remarks: string) => void;
   onReject?: (requestId: string, remarks: string) => void;
   isProcessing?: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (requestId: string, selected: boolean) => void;
 }
 
 const getStatusBadge = (status: string) => {
@@ -50,6 +54,9 @@ const EnrollmentRequestCard = ({
   onApprove,
   onReject,
   isProcessing,
+  selectable,
+  selected,
+  onSelect,
 }: EnrollmentRequestCardProps) => {
   const [remarks, setRemarks] = useState('');
 
@@ -58,8 +65,17 @@ const EnrollmentRequestCard = ({
     (userRole === 'advisor' && request.status === 'pending_advisor');
 
   return (
-    <Card className="card-hover border border-border/60">
-      <CardHeader className="pb-3">
+    <Card className={`card-hover border border-border/60 relative ${selected ? 'ring-2 ring-primary border-primary/50' : ''}`}>
+      {selectable && canTakeAction && (
+        <div className="absolute top-4 left-4 z-10">
+          <Checkbox
+            checked={selected}
+            onCheckedChange={(checked) => onSelect?.(request.id, checked as boolean)}
+            className="h-5 w-5 border-2"
+          />
+        </div>
+      )}
+      <CardHeader className={`pb-3 ${selectable && canTakeAction ? 'pl-11' : ''}`}>
         <div className="flex items-start justify-between flex-wrap gap-2">
           <div>
             <CardTitle className="text-lg font-heading">

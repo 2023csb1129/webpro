@@ -9,24 +9,49 @@ const router = express.Router();
 // Create enrollment request (Student)
 router.post('/', async (req, res) => {
     try {
-        const { studentId, courseId, advisorId } = req.body;
+        // Create new enrollment
+        const { studentId, courseId } = req.body;
 
-        // Check if course exists and is open
+        // 1. Get student's department/branch
+        const student = await User.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ success: false, message: 'Student not found' });
+        }
+
+        // 2. Validate course eligibility for this branch
         const course = await Course.findById(courseId).populate('instructorId', 'name email');
         if (!course) {
             return res.status(404).json({ success: false, message: 'Course not found' });
         }
+
+        const isEligible = course.eligibleBranches.includes(student.department) || course.eligibleBranches.includes('All');
+        if (!isEligible) {
+            return res.status(403).json({
+                success: false,
+                message: `This course is not offered to ${student.department} department. Eligible: ${course.eligibleBranches.join(', ')}`
+            });
+        }
+
+        // 3. Find advisor for the student's branch
+        const advisor = await User.findOne({
+            role: 'advisor',
+            department: student.department,
+            isActive: true
+        });
+
+        if (!advisor) {
+            return res.status(404).json({
+                success: false,
+                message: `No advisor found for your department (${student.department}). Please contact admin.`
+            });
+        }
+
+        // Check if course is open and has seats
         if (!course.isOpen) {
             return res.status(400).json({ success: false, message: 'Course is not open for enrollment' });
         }
         if (course.enrolledCount >= course.maxSeats) {
             return res.status(400).json({ success: false, message: 'Course is full' });
-        }
-
-        // Get student info
-        const student = await User.findById(studentId);
-        if (!student) {
-            return res.status(404).json({ success: false, message: 'Student not found' });
         }
 
         // Check if already enrolled or pending
@@ -43,7 +68,7 @@ router.post('/', async (req, res) => {
 
             // If inactive (withdrawn/rejected), reset to pending
             enrollment.status = 'pending_instructor';
-            enrollment.advisorId = advisorId; // Update advisor if changed
+            enrollment.advisorId = advisor._id;
 
             // Clear previous approvals/remarks
             enrollment.instructorApproval = undefined;
@@ -60,7 +85,7 @@ router.post('/', async (req, res) => {
             enrollment = await Enrollment.create({
                 studentId,
                 courseId,
-                advisorId,
+                advisorId: advisor._id,
                 status: 'pending_instructor'
             });
         }
@@ -116,7 +141,10 @@ router.get('/instructor/:instructorId', async (req, res) => {
             .populate('studentId', 'name email')
             .sort({ createdAt: -1 });
 
-        res.json({ success: true, enrollments });
+        // Filter out any enrollments where course or student might have been deleted but reference persists
+        const validEnrollments = enrollments.filter(e => e.courseId && e.studentId);
+
+        res.json({ success: true, enrollments: validEnrollments });
     } catch (error) {
         console.error('Get instructor enrollments error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch enrollments' });
@@ -134,7 +162,9 @@ router.get('/advisor/:advisorId', async (req, res) => {
             .populate('studentId', 'name email')
             .sort({ createdAt: -1 });
 
-        res.json({ success: true, enrollments });
+        const validEnrollments = enrollments.filter(e => e.courseId && e.studentId);
+
+        res.json({ success: true, enrollments: validEnrollments });
     } catch (error) {
         console.error('Get advisor enrollments error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch enrollments' });

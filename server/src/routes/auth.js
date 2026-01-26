@@ -18,11 +18,11 @@ router.get('/check-user/:email', async (req, res) => {
                 name: user.name
             });
         } else {
-            // New user - will be registered as student
+            // New user - block access
             res.json({
                 success: true,
                 exists: false,
-                defaultRole: 'student'
+                message: 'Email not registered'
             });
         }
     } catch (error) {
@@ -120,12 +120,10 @@ router.post('/verify-otp', async (req, res) => {
         let user = await User.findOne({ email: email.toLowerCase() });
 
         if (!user) {
-            // NEW USER - Register as STUDENT by default
-            user = await User.create({
-                email: email.toLowerCase(),
-                name: name || email.split('@')[0],
-                role: 'student',  // Default role for new users
-                department: 'General'
+            // NEW USER - DO NOT register automatically anymore
+            return res.status(401).json({
+                success: false,
+                message: 'Your email is not registered in the system. Please contact the administrator.'
             });
         }
 

@@ -78,26 +78,8 @@ const StudentDashboard = () => {
 
     setIsEnrolling(courseId);
 
-    // Find advisor matching the course department (case-insensitive)
-    const course = courses.find(c => c.id === courseId);
-    const matchedAdvisor = advisors.find(a =>
-      a.department?.toLowerCase() === course?.department?.toLowerCase()
-    );
-
-    // Fallback to first advisor if no match found (or handle error)
-    const advisorId = matchedAdvisor?.id || advisors[0]?.id;
-
-    if (!advisorId) {
-      toast({
-        title: 'Enrollment Failed',
-        description: 'No advisor found for this department.',
-        variant: 'destructive',
-      });
-      setIsEnrolling(null);
-      return;
-    }
-
-    const result = await enrollmentsAPI.create(user.id, courseId, advisorId);
+    // Backend now handles matching the student branch to the advisor automatically
+    const result = await enrollmentsAPI.create(user.id, courseId);
 
     setIsEnrolling(null);
 
@@ -129,6 +111,12 @@ const StudentDashboard = () => {
   );
   const myEnrolledCourses = courses.filter(c => enrolledCourseIds.includes(c.id));
   const myPendingCourses = courses.filter(c => pendingCourseIds.includes(c.id));
+
+  const checkEligibility = (course: Course) => {
+    if (!user?.department) return true;
+    if (!course.eligibleBranches) return true; // Safety fallback
+    return course.eligibleBranches.includes(user.department) || course.eligibleBranches.includes('All');
+  };
 
   const handleWithdraw = async (enrollmentId: string) => {
     if (!confirm('Are you sure you want to withdraw from this course? This action cannot be undone immediately if seats fill up.')) return;
@@ -258,6 +246,7 @@ const StudentDashboard = () => {
                     onEnroll={handleEnroll}
                     isEnrolling={isEnrolling === course.id}
                     showEnrollButton={true}
+                    isEligible={checkEligibility(course)}
                   />
                 ))}
               </div>

@@ -44,7 +44,7 @@ const Header = () => {
         {isAuthenticated && user && (
           <>
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-4 lg:hidden">
               <div className="flex items-center gap-3 rounded-lg bg-muted px-4 py-2">
                 <div className="text-right">
                   <p className="text-sm font-medium text-foreground">{user.name}</p>
@@ -54,7 +54,10 @@ const Header = () => {
                   {user.role}
                 </Badge>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
+            </div>
+
+            <div className="hidden md:flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:text-destructive">
                 <LogOut className="h-5 w-5" />
               </Button>
             </div>

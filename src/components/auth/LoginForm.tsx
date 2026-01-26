@@ -134,7 +134,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
             <p className="text-xs text-muted-foreground text-center">
               Your role will be detected automatically based on your registration.
               <br />
-              New users will be registered as students.
+              Please use your registered University email.
             </p>
 
             {error && (

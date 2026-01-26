@@ -24,7 +24,8 @@ router.get('/', async (req, res) => {
             instructorEmail: course.instructorId?.email || '',
             maxSeats: course.maxSeats,
             enrolledCount: course.enrolledCount,
-            isOpen: course.isOpen
+            isOpen: course.isOpen,
+            eligibleBranches: course.eligibleBranches || []
         }));
 
         res.json({ success: true, courses: transformedCourses });
@@ -53,7 +54,8 @@ router.get('/open', async (req, res) => {
             instructorEmail: course.instructorId?.email || '',
             maxSeats: course.maxSeats,
             enrolledCount: course.enrolledCount,
-            isOpen: course.isOpen
+            isOpen: course.isOpen,
+            eligibleBranches: course.eligibleBranches || []
         }));
 
         res.json({ success: true, courses: transformedCourses });
@@ -87,7 +89,8 @@ router.get('/:id', async (req, res) => {
                 instructorEmail: course.instructorId?.email || '',
                 maxSeats: course.maxSeats,
                 enrolledCount: course.enrolledCount,
-                isOpen: course.isOpen
+                isOpen: course.isOpen,
+                eligibleBranches: course.eligibleBranches || []
             }
         });
     } catch (error) {

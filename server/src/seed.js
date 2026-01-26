@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import User from './models/User.js';
 import Course from './models/Course.js';
 import Enrollment from './models/Enrollment.js';
+import InstructorCourse from './models/InstructorCourse.js';
 import dns from 'dns';
 
 // Use Google DNS for SRV record resolution
@@ -11,187 +12,132 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 dotenv.config();
 
+const generateUserList = (baseList, role, department, baseEmail) => {
+    return baseList.map((name, index) => {
+        const [userPart, domainPart] = baseEmail.split('@');
+        return {
+            email: index === 0 ? baseEmail : `${userPart}+${index}@${domainPart}`,
+            name: name,
+            role: role,
+            department: Array.isArray(department) ? department[index % department.length] : department
+        };
+    });
+};
+
 const seedData = async () => {
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
+        const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aims';
+        await mongoose.connect(mongoUri);
         console.log('Connected to MongoDB');
 
         // Clear existing data
         await User.deleteMany({});
         await Course.deleteMany({});
         await Enrollment.deleteMany({});
+        await InstructorCourse.deleteMany({});
         console.log('Cleared existing data');
 
         // ==========================================
-        // INSTRUCTORS - Pre-registered (can approve enrollments)
+        // ADMIN
         // ==========================================
-        const instructors = await User.create([
-            {
-                email: 'bhantureddy65@gmail.com',  // Test instructor
-                name: 'Dr. Bhantu Reddy',
-                role: 'instructor',
-                department: 'Computer Science'
-            },
-            {
-                email: 'dr.sarah.smith@university.edu',
-                name: 'Dr. Sarah Smith',
-                role: 'instructor',
-                department: 'Computer Science'
-            },
-            {
-                email: 'dr.chen@university.edu',
-                name: 'Dr. Emily Chen',
-                role: 'instructor',
-                department: 'Computer Science'
-            },
-            {
-                email: 'prof.wilson@university.edu',
-                name: 'Prof. David Wilson',
-                role: 'instructor',
-                department: 'Computer Science'
-            }
-        ]);
+        const mainAdmin = await User.create({
+            email: 'skp10022006@gmail.com',
+            name: 'Main Admin',
+            role: 'admin',
+            department: 'Administration'
+        });
+        console.log('Created admin user');
+
+        // ==========================================
+        // INSTRUCTORS
+        // ==========================================
+        const instructorNames = [
+            'Dr. Arpit Sharma', 'Dr. Sumit Kumar', 'Prof. Meena Rao',
+            'Dr. Rajesh Gupta', 'Prof. Anjali Singh', 'Dr. Vikram Malhotra',
+            'Dr. Sneha Patil', 'Prof. Alok Deshmukh', 'Dr. Kavita Reddy',
+            'Prof. Rohan Verma', 'Dr. Nikita Jain'
+        ];
+        const instructors = await User.create(generateUserList(instructorNames, 'instructor', 'Computer Science', 'vennelanayak87@gmail.com'));
         console.log(`Created ${instructors.length} instructors`);
 
         // ==========================================
-        // ADVISORS - Pre-registered (final approval)
+        // ADVISORS
         // ==========================================
-        const advisors = await User.create([
-            {
-                email: 'hemanthsadineni@gmail.com',  // Test advisor (your email)
-                name: 'Prof. Hemanth Sadineni',
-                role: 'advisor',
-                department: 'Computer Science'
-            },
-            {
-                email: 'prof.johnson@university.edu',
-                name: 'Prof. Michael Johnson',
-                role: 'advisor',
-                department: 'Computer Science'
-            }
-        ]);
-        console.log(`Created ${advisors.length} advisors`);
+        const advisorNames = [
+            'Prof. K. Venkatesh', 'Dr. S. R. Murthy', 'Prof. Preeti Mittal',
+            'Dr. G. S. Rao', 'Prof. Lakshmi Narayan', 'Dr. T. R. Krishnan',
+            'Prof. B. D. Gupta', 'Dr. P. S. Reddy', 'Prof. M. S. Swamy',
+            'Dr. R. K. Sharma', 'Prof. V. K. Singh'
+        ];
+        const branches = ['CSE', 'MNC', 'AI'];
+        const advisors = await User.create(generateUserList(advisorNames, 'advisor', branches, 'vennelarathod2@gmail.com'));
+        console.log(`Created ${advisors.length} advisors across branches`);
 
         // ==========================================
+        // STUDENTS
         // ==========================================
-        // ADMIN - System administrator
-        // ==========================================
-        const admins = await User.create([
-            {
-                email: 'admin@university.edu',
-                name: 'System Admin',
-                role: 'admin',
-                department: 'Administration'
-            },
-            {
-                email: 'varavind433@gmail.com',
-                name: 'Var Aravind',
-                role: 'admin',
-                department: 'Administration'
-            },
-            {
-                email: 'skp10022006@gmail.com',
-                name: 'Main Admin',
-                role: 'admin',
-                department: 'Administration'
-            }
-        ]);
-        console.log(`Created ${admins.length} admin users`);
+        const cseNames = [
+            'Aaryan Singh', 'Ishita Sharma', 'Rohan Gupta', 'Sanya Malhotra',
+            'Aditya Verma', 'Ananya Kapoor', 'Kabir Das', 'Meera Iyer',
+            'Vihaan Reddy', 'Zoya Khan', 'Arjun Saxena'
+        ];
+        const aiNames = [
+            'Rahul Dravid', 'Priya Mani', 'Siddharth Roy', 'Tara Sutaria',
+            'Varun Dhawan', 'Kriti Sanon', 'Ayushmann Khurrana', 'Alia Bhatt',
+            'Ranbir Kapoor', 'Deepika Padukone', 'Shah Rukh Khan'
+        ];
+
+        const studentsCSE = await User.create(generateUserList(cseNames, 'student', 'CSE', '2023csb1129@iitrpr.ac.in'));
+        const studentsAI = await User.create(generateUserList(aiNames, 'student', 'AI', '2023csb1110@iitrpr.ac.in'));
+
+        console.log(`Created ${studentsCSE.length} CSE students and ${studentsAI.length} AI students`);
 
         // ==========================================
-        // COURSES - With assigned instructors
+        // COURSES
         // ==========================================
-        const courses = await Course.create([
-            {
-                code: 'CS301',
-                name: 'Data Structures and Algorithms',
-                description: 'Advanced study of data structures including trees, graphs, and hash tables.',
-                credits: 4,
-                department: 'Computer Science',
-                instructorId: instructors[0]._id, // Dr. Bhantu Reddy
-                maxSeats: 60,
-                enrolledCount: 45,
-                isOpen: true
-            },
-            {
-                code: 'CS401',
-                name: 'Machine Learning',
-                description: 'Introduction to machine learning concepts, supervised and unsupervised learning.',
-                credits: 4,
-                department: 'Computer Science',
-                instructorId: instructors[1]._id, // Dr. Sarah Smith
-                maxSeats: 40,
-                enrolledCount: 32,
-                isOpen: true
-            },
-            {
-                code: 'CS302',
-                name: 'Database Management Systems',
-                description: 'Relational database design, SQL, normalization, and NoSQL databases.',
-                credits: 3,
-                department: 'Computer Science',
-                instructorId: instructors[2]._id, // Dr. Emily Chen
-                maxSeats: 50,
-                enrolledCount: 38,
-                isOpen: true
-            },
-            {
-                code: 'CS405',
-                name: 'Computer Networks',
-                description: 'TCP/IP, routing algorithms, and network security fundamentals.',
-                credits: 3,
-                department: 'Computer Science',
-                instructorId: instructors[3]._id, // Prof. David Wilson
-                maxSeats: 50,
-                enrolledCount: 42,
-                isOpen: true
-            },
-            {
-                code: 'CS501',
-                name: 'Cloud Computing',
-                description: 'Cloud architecture, virtualization, containers, and microservices.',
-                credits: 4,
-                department: 'Computer Science',
-                instructorId: instructors[0]._id, // Dr. Bhantu Reddy (teaches 2 courses)
-                maxSeats: 45,
-                enrolledCount: 20,
-                isOpen: true
-            }
-        ]);
-        console.log(`Created ${courses.length} courses`);
+        const courseData = [
+            { code: 'HS301', name: 'Industrial management', credits: 3, eligible: ['CSE', 'MNC', 'AI'] },
+            { code: 'CS304', name: 'Computer networks', credits: 4, eligible: ['CSE'] },
+            { code: 'CS305', name: 'Software Engineering', credits: 4, eligible: ['CSE', 'AI'] },
+            { code: 'CS306', name: 'Theory of computation', credits: 4, eligible: ['CSE', 'MNC'] },
+            { code: 'CP301', name: 'Development engineering project', credits: 6, eligible: ['CSE', 'MNC', 'AI'] },
+            { code: 'HS104', name: 'Professional ethics', credits: 2, eligible: ['CSE', 'MNC', 'AI'] },
+            { code: 'HS202', name: 'Human geography', credits: 3, eligible: ['CSE', 'MNC', 'AI'] },
+            { code: 'CS303', name: 'Operating systems', credits: 4, eligible: ['CSE'] },
+            { code: 'CS302', name: 'Analysis and design of algorithms', credits: 4, eligible: ['CSE', 'MNC', 'AI'] },
+            { code: 'CS301', name: 'Databases', credits: 4, eligible: ['CSE', 'AI'] },
+            { code: 'GE109', name: 'Introduction to engineering products', credits: 2, eligible: ['CSE', 'MNC', 'AI'] },
+            { code: 'MA202', name: 'Probability and statistics', credits: 4, eligible: ['MNC', 'AI'] },
+            { code: 'CS204', name: 'Computer architecture', credits: 4, eligible: ['CSE'] }
+        ];
+
+        const courses = await Course.create(courseData.map((c, index) => ({
+            code: c.code,
+            name: c.name,
+            credits: c.credits,
+            eligibleBranches: c.eligible,
+            description: `Core course on ${c.name}`,
+            department: 'Computer Science', // Keep internal dept name if needed, or sync with branches
+            instructorId: instructors[index % instructors.length]._id,
+            maxSeats: 60,
+            isOpen: true
+        })));
+        console.log(`Created ${courses.length} courses with branch eligibility`);
 
         // ==========================================
-        // SUMMARY
+        // INITIAL INSTRUCTOR-COURSE ASSIGNMENTS
         // ==========================================
-        console.log('\n========================================');
-        console.log('✅ DATABASE SEEDED SUCCESSFULLY!');
-        console.log('========================================\n');
-
-        console.log('📧 PRE-REGISTERED USERS:\n');
-
-        console.log('🔴 INSTRUCTORS (can approve enrollments):');
-        instructors.forEach(i => console.log(`   - ${i.email} (${i.name})`));
-
-        console.log('\n🟡 ADVISORS (final approval):');
-        advisors.forEach(a => console.log(`   - ${a.email} (${a.name})`));
-
-        console.log('\n🟢 ADMINS:');
-        admins.forEach(a => console.log(`   - ${a.email} (${a.name})`));
-
-        console.log('\n📚 COURSES:');
-        for (const course of courses) {
-            const instructor = instructors.find(i => i._id.equals(course.instructorId));
-            console.log(`   - ${course.code}: ${course.name}`);
-            console.log(`     Instructor: ${instructor?.name}`);
-        }
+        // Ensure instructors also have records in InstructorCourse so they see them in "My Courses"
+        await InstructorCourse.create(courses.map(course => ({
+            instructorId: course.instructorId,
+            courseId: course._id,
+            semester: 'Spring 2026',
+            isActive: true
+        })));
+        console.log('Created initial instructor-course assignments');
 
         console.log('\n========================================');
-        console.log('HOW ROLES WORK:');
-        console.log('========================================');
-        console.log('• New users logging in → Registered as STUDENT automatically');
-        console.log('• Pre-registered emails → Use their assigned role');
-        console.log('• Instructors → See and approve enrollment requests');
-        console.log('• Advisors → Final approval for enrollments');
+        console.log('✅ DATABASE RESET AND SEEDED SUCCESSFULLY!');
         console.log('========================================\n');
 
         await mongoose.disconnect();

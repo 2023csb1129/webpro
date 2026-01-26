@@ -44,6 +44,10 @@ const courseSchema = new mongoose.Schema({
     isOpen: {
         type: Boolean,
         default: true
+    },
+    eligibleBranches: {
+        type: [String],
+        default: ['CSE'] // Default to CSE
     }
 }, {
     timestamps: true

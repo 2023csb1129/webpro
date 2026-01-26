@@ -184,6 +184,40 @@ export const usersAPI = {
     },
 };
 
+// Instructor Courses API
+export const instructorCoursesAPI = {
+    getAvailable: async (instructorId: string, semester?: string) => {
+        const params = new URLSearchParams({ instructorId });
+        if (semester) params.append('semester', semester);
+        return fetchAPI<{ courses: InstructorCourseInfo[] }>(`/instructor-courses/available?${params}`);
+    },
+
+    enroll: async (instructorId: string, courseId: string, semester?: string) => {
+        return fetchAPI<{ enrollment: any; message: string }>('/instructor-courses/enroll', {
+            method: 'POST',
+            body: JSON.stringify({ instructorId, courseId, semester }),
+        });
+    },
+
+    getMyCourses: async (instructorId: string, semester?: string) => {
+        const params = new URLSearchParams({ instructorId });
+        if (semester) params.append('semester', semester);
+        return fetchAPI<{ courses: InstructorCourseInfo[] }>(`/instructor-courses/my-courses?${params}`);
+    },
+
+    getCourseStudents: async (courseId: string, instructorId: string) => {
+        return fetchAPI<{ course: Course; students: StudentEnrollmentInfo[] }>(
+            `/instructor-courses/course/${courseId}/students?instructorId=${instructorId}`
+        );
+    },
+
+    unenroll: async (enrollmentId: string) => {
+        return fetchAPI<{ message: string }>(`/instructor-courses/unenroll/${enrollmentId}`, {
+            method: 'DELETE',
+        });
+    },
+};
+
 // Types
 export interface User {
     id: string;
@@ -206,6 +240,7 @@ export interface Course {
     maxSeats: number;
     enrolledCount: number;
     isOpen: boolean;
+    eligibleBranches: string[];
 }
 
 export interface Enrollment {
@@ -221,3 +256,30 @@ export interface Enrollment {
     createdAt: string;
     updatedAt: string;
 }
+
+export interface InstructorCourseInfo {
+    id: string;
+    enrollmentId?: string;
+    code: string;
+    name: string;
+    description: string;
+    credits: number;
+    department: string;
+    maxSeats: number;
+    enrolledCount: number;
+    isOpen?: boolean;
+    isEnrolled?: boolean;
+    enrolledAt?: string;
+}
+
+export interface StudentEnrollmentInfo {
+    id: string;
+    name: string;
+    email: string;
+    department: string;
+    status: string;
+    enrolledAt: string;
+    instructorApproval?: boolean;
+    advisorApproval?: boolean;
+}
+

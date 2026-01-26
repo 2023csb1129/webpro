@@ -8,6 +8,7 @@ import { Clock, CheckCircle, XCircle, Inbox, Users, Loader2 } from 'lucide-react
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { enrollmentsAPI } from '@/services/api';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface EnrollmentRequest {
   id: string;
@@ -31,6 +32,7 @@ const AdvisorDashboard = () => {
   const { toast } = useToast();
 
   const [requests, setRequests] = useState<EnrollmentRequest[]>([]);
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -119,6 +121,55 @@ const AdvisorDashboard = () => {
     setIsProcessing(false);
   };
 
+  const handleSelectRequest = (requestId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedRequestIds(prev => [...prev, requestId]);
+    } else {
+      setSelectedRequestIds(prev => prev.filter(id => id !== requestId));
+    }
+  };
+
+  const handleSelectAllRequests = (selected: boolean) => {
+    if (selected) {
+      const pendingIds = requests.filter(r => r.status === 'pending_advisor').map(r => r.id);
+      setSelectedRequestIds(pendingIds);
+    } else {
+      setSelectedRequestIds([]);
+    }
+  };
+
+  const handleBatchAction = async (action: 'approve' | 'reject') => {
+    if (selectedRequestIds.length === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const results = await Promise.all(
+        selectedRequestIds.map(id => enrollmentsAPI.advisorAction(id, action, `Batch ${action}d`))
+      );
+
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
+        toast({
+          title: `Batch ${action === 'approve' ? 'Approval' : 'Rejection'} Complete`,
+          description: `Successfully processed ${successCount} requests.${failCount > 0 ? ` Failed ${failCount} requests.` : ''}`,
+        });
+        setSelectedRequestIds([]);
+        fetchRequests();
+      } else {
+        toast({
+          title: 'Batch Action Failed',
+          description: 'Could not process the selected requests.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Batch action error:', error);
+    }
+    setIsProcessing(false);
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -200,9 +251,55 @@ const AdvisorDashboard = () => {
           </TabsList>
 
           <TabsContent value="pending" className="space-y-4 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-muted-foreground italic">
+                  Review student requests approved by instructors
+                </p>
+              </div>
+
+              {pendingRequests.length > 0 && (
+                <div className="flex items-center gap-4 p-2 bg-muted/40 rounded-lg">
+                  <div className="flex items-center gap-2 px-2">
+                    <Checkbox
+                      id="select-all-advisor"
+                      checked={selectedRequestIds.length === pendingRequests.length && pendingRequests.length > 0}
+                      onCheckedChange={(checked) => handleSelectAllRequests(checked as boolean)}
+                    />
+                    <label htmlFor="select-all-advisor" className="text-sm font-medium cursor-pointer">
+                      Select All ({pendingRequests.length})
+                    </label>
+                  </div>
+
+                  {selectedRequestIds.length > 0 && (
+                    <div className="flex items-center gap-2 border-l pl-4 animate-in fade-in zoom-in duration-200">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        disabled={isProcessing}
+                        onClick={() => handleBatchAction('approve')}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approve {selectedRequestIds.length}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={isProcessing}
+                        onClick={() => handleBatchAction('reject')}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject {selectedRequestIds.length}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {pendingRequests.length === 0 ? (
-              <Card className="p-8 text-center">
-                <Inbox className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <Card className="p-8 text-center border-dashed">
+                <Inbox className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-20" />
                 <p className="text-muted-foreground">No pending requests at the moment.</p>
                 <p className="text-sm text-muted-foreground mt-2">
                   Requests will appear here after instructors approve them.
@@ -218,6 +315,9 @@ const AdvisorDashboard = () => {
                     onApprove={handleApprove}
                     onReject={handleReject}
                     isProcessing={isProcessing}
+                    selectable={true}
+                    selected={selectedRequestIds.includes(request.id)}
+                    onSelect={handleSelectRequest}
                   />
                 ))}
               </div>
